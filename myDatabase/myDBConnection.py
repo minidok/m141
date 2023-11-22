@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+# Datenbank Verbindung mit postgres DB aufbauen
 ## Beschreibung Modul https://www.psycopg.org/psycopg3/docs/basic/usage.html
 ## Psycopg 3 – PostgreSQL database adapter for Python
 import psycopg
