@@ -1,0 +1,47 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.development
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes data (local development)
+postgres-data/
+pgadmin-data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Backup files
+*.bak
+*.backup

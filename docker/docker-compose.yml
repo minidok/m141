@@ -2,7 +2,7 @@
 # Modul 141  
 #
 # Container mit PSQL und pgAdmin4
-# Version für Linux
+# Version für Linux - Security Enhanced
 # 
 # Dominik Reuss
 #
@@ -11,41 +11,88 @@
 services:
   db:
     container_name: pg_container
-    image: postgres:latest
-    restart: always
+    image: postgres:16-alpine  # Pinned version with alpine for smaller attack surface
+    restart: unless-stopped   # More secure than 'always'
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_HOST_AUTH_METHOD: password
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD}
+      POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS}
     networks:
       - pgnetwork
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT}:5432"  # Bind to localhost only
     volumes:
-     - postgres-data:/var/lib/postgresql/data/:rw
+      - postgres-data:/var/lib/postgresql/data/:rw
+    user: postgres  # Run as non-root user
+    security_opt:
+      - no-new-privileges:true  # Prevent privilege escalation
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  
   pgadmin:
     container_name: pgadmin4_container
-    image: dpage/pgadmin4:latest
-    restart: always
+    image: dpage/pgadmin4:8.2  # Pinned version
+    restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: root
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'True'
+      PGADMIN_CONFIG_LOGIN_BANNER: '"Authorized Users Only"'
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 20
     networks:
       - pgnetwork
     ports:
-      - "8081:80"
+      - "127.0.0.1:${PGADMIN_PORT}:80"  # Bind to localhost only
     volumes:
-    - pgadmin-data:/var/lib/pgadmin/:rw
+      - pgadmin-data:/var/lib/pgadmin/:rw
+    user: pgadmin  # Run as non-root user
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      db:
+        condition: service_healthy
 
 networks:
   pgnetwork: 
     driver: bridge
+    internal: false  # Allow external access but controlled via port binding
+    driver_opts:
+      com.docker.network.bridge.name: "pgbridge"
+      com.docker.network.bridge.enable_icc: "false"  # Disable inter-container communication unless explicit
   
 volumes:
   pgadmin-data:
+    driver: local
   postgres-data:
+    driver: local
  
 
 
