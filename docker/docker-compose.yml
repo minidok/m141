@@ -8,8 +8,6 @@
 #
 ###################################
 
-version: '3'
-
 services:
   db:
     container_name: pg_container
