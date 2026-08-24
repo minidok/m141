@@ -3,49 +3,81 @@
 #
 # Container mit PSQL und pgAdmin4
 # Version für Linux
+# postgres 18, pgadmin4 9.17
 # 
 # Dominik Reuss
-#
+# 20260824
 ###################################
+
 
 services:
   db:
     container_name: pg_container
-    image: postgres:latest
-    restart: always
+    image: postgres:18-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_HOST_AUTH_METHOD: password
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     networks:
       - pgnetwork
     ports:
       - "5432:5432"
     volumes:
-     - postgres-data:/var/lib/postgresql/data/:rw
+      - postgres-data:/var/lib/postgresql:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 1m
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  
   pgadmin:
     container_name: pgadmin4_container
-    image: dpage/pgadmin4:latest
-    restart: always
+    image: dpage/pgadmin4:9.17
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: root
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD fehlt in .env}
+      PGADMIN_DISABLE_POSTFIX: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_LISTEN_PORT: ${PGADMIN_PORT:-8080}
     networks:
       - pgnetwork
     ports:
-      - "8081:80"
+      - "8081:8080"
     volumes:
-    - pgadmin-data:/var/lib/pgadmin/:rw
+      - pgadmin-data:/var/lib/pgadmin:rw
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  pgnetwork: 
+  pgnetwork:
     driver: bridge
-  
+
 volumes:
   pgadmin-data:
   postgres-data:
- 
-
-
